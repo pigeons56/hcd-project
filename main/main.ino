@@ -1,5 +1,11 @@
+#include <RTClib.h>
+
+RTC_DS3231 rtc; //Depends on what RTC we have
+
 void setup() {
-  // put your setup code here, to run once:
+  // RTC Setup
+  rtc.begin();
+  setTime(); //Comment out after done ONCE
 
 }
 
@@ -8,11 +14,18 @@ void loop() {
 
 }
 
-int needsWater(){
-  int value = analogRead(sensorPin);
-  if(value < 300)
-    return 1;
-  else
-    return 0;
-  //backup water if not watered in 48 hours? need a way to track time
+/*
+ * Returns the current hour.
+ */
+int getHour() {
+  DateTime now = rtc.now();
+  return now.hour();
+}
+
+/* 
+ * One-time setup for the RTC. Time should save even when Arduino is not running.
+ * Run ONCE.
+ */
+void setTime() {
+  rtc.adjust(DateTime(2024, 11, 18, 4, 28, 0)); //yr, mon, day, hr, min, sec
 }
