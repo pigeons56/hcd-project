@@ -1,6 +1,8 @@
+//Libraries
 #include <RTClib.h>
 #include "Adafruit_seesaw.h"
 
+//Constants
 #define WATER_INTERVAL_DAYS 7
 #define MIN_SOIL_MOISTURE 300
 #define PUMP_OPEN_COUNTS 1000
@@ -8,12 +10,16 @@
 RTC_DS3231 rtc; //Depends on what RTC we have
 Adafruit_seesaw ss;
 const int pumpPin = 1;
+const int floatSwitchPin = 2;
+const int ledPin = 3;
 
+//Function Prototypes
 int getHour();
 int getDay();
 void setTime();
 bool needsWater();
 void waterPlant();
+void readFloatSwitch();
 
 void setup() {
   // RTC Setup
@@ -25,12 +31,34 @@ void setup() {
 
   //Water pump setup
   pinMode(pumpPin, OUTPUT);
+
+  //Float switch setup
+  pinMode(floatSwitchPin, INPUT_PULLUP);
+  pinMode(ledPin, OUTPUT);
 }
 
 void loop() {
 
   waterPlant();
+  readFloatSwitch();
 
+  delay(100);
+
+}
+
+/*
+ * Reads the state of the float switch. If the float switch is
+ * LOW (water level is high), turn off LED. If the float switch
+ * is HIGH (water level is low), turn on LED.
+*/
+void readFloatSwitch() {
+  static bool floatSwitchState = digitalRead(floatSwitchPin);
+
+  if (floatSwitchState == LOW) {
+    digitalWrite(ledPin, LOW);
+  } else {
+    digitalWrite(ledPin, HIGH);
+  }
 }
 
 /*
@@ -93,6 +121,7 @@ bool needsWater() {
       return 1; 
     }
   }
+}
   
 /*
  * Returns the current hour.
