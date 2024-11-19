@@ -3,14 +3,17 @@
 
 #define WATER_INTERVAL_DAYS 7
 #define MIN_SOIL_MOISTURE 300
+#define PUMP_OPEN_COUNTS 1000
 
 RTC_DS3231 rtc; //Depends on what RTC we have
 Adafruit_seesaw ss;
+const int pumpPin = 1;
 
 int getHour();
 int getDay();
 void setTime();
 bool needsWater();
+void waterPlant();
 
 void setup() {
   // RTC Setup
@@ -19,10 +22,38 @@ void setup() {
 
   //Soil sensor setup
   ss.begin(0x36);
+
+  //Water pump setup
+  pinMode(pumpPin, OUTPUT);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+
+  waterPlant();
+
+}
+
+/*
+ * Open pump depending on needsWater() value. Pump stays open for PUMP_OPEN_COUNTS.
+*/
+void waterPlant() {
+  static bool pumpOpen = 0;
+  static int count = 0;
+
+  if (pumpOpen) {
+    count++; //keep counting
+
+    if (count > PUMP_OPEN_COUNTS) { //after pump is open for a certain duration
+      count = 0; //reset counting
+      pumpOpen = 0; //close pump
+      digitalWrite(pumpPin, LOW); //physically close pump
+    }
+  } else {
+      if (needsWater()) { //if water conditions are met
+        pumpOpen = 1; //open pump
+        digitalWrite(pumpPin, HIGH); //physically open pump
+      }
+  }
 
 }
 
@@ -86,3 +117,4 @@ int getDay() {
 void setTime() {
   rtc.adjust(DateTime(2024, 11, 18, 4, 28, 0)); //yr, mon, day, hr, min, sec
 }
+>>>>>>> 5aace20a068c975fa68eef930e8eeb66e58d46c2
