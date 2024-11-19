@@ -1,5 +1,11 @@
+#include <Adafruit_seesaw.h>
+
+Adafruit_seesaw ss;
+
+
 void setup() {
-  // put your setup code here, to run once:
+  //Soil sensor setup
+  ss.begin(0x36);
 
 }
 
@@ -9,10 +15,11 @@ void loop() {
 }
 
 int needsWater(){
-  int value = analogRead(sensorPin);
-  if(value < 300)
+  uint16_t capread = ss.touchRead(0);
+  if(capread < 300) {
     return 1;
-  else
+  } else {
     return 0;
-  //backup water if not watered in 48 hours? need a way to track time
+  }
+  
 }
