@@ -5,6 +5,8 @@
 
 Adafruit_seesaw ss;
 
+bool needsWater();
+
 
 void setup() {
   //Soil sensor setup
