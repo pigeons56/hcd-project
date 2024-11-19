@@ -6,12 +6,21 @@
 #define WATER_INTERVAL_DAYS 7
 #define MIN_SOIL_MOISTURE 300
 #define PUMP_OPEN_COUNTS 1000
+#define PLANT_LIGHT_ON_TIME 10
+#define PLANT_LIGHT_OFF_TIME 16
 
 RTC_DS3231 rtc; //Depends on what RTC we have
 Adafruit_seesaw ss;
 const int pumpPin = 1;
 const int floatSwitchPin = 2;
 const int ledPin = 3;
+const int plantLightPin = 4;
+const int plantLightOffPin = 5;
+const int plantLightButtonPin = 6;
+
+//Global vars
+bool plantLightToggleOff = 0;
+bool plantLightOn = 0;
 
 //Function Prototypes
 int getHour();
@@ -20,6 +29,10 @@ void setTime();
 bool needsWater();
 void waterPlant();
 void readFloatSwitch();
+void timePlantLight();
+void turnPlantLightOn();
+void turnPlantLightOff();
+void plantLightToggle();
 
 void setup() {
   // RTC Setup
@@ -35,15 +48,81 @@ void setup() {
   //Float switch setup
   pinMode(floatSwitchPin, INPUT_PULLUP);
   pinMode(ledPin, OUTPUT);
+
+  //Plant light setup
+  pinMode(plantLightPin, OUTPUT);
+  pinMode(plantLightOffPin, OUTPUT);
+  pinMode(plantLightButtonPin, INPUT);
 }
 
 void loop() {
+  //Plant light control
+  plantLightToggle();
+  if (plantLightToggleOff) {
+    turnPlantLightOff(); //Plant light always off if toggled off
+  } else {
+    timePlantLight(); //Control plant light based on hour if not toggled off
+  }
 
+  //Water the plant according to time or soil moisture
   waterPlant();
+
+  //Check water level
   readFloatSwitch();
 
   delay(100);
+}
 
+/*
+ * Turns plant light on/off according to current hour.
+*/
+void timePlantLight() {
+  static int hour = getHour();
+
+  if (hour < PLANT_LIGHT_OFF_TIME && hour >= PLANT_LIGHT_ON_TIME) {
+    turnPlantLightOn();
+  } else {
+    turnPlantLightOff();
+  }
+}
+
+/*
+ * Turns plant light on.
+*/
+void turnPlantLightOn() {
+  if (!plantLightOn) {
+      plantLightOn = 1;
+      digitalWrite(plantLightPin, HIGH);
+  }
+}
+
+/*
+ * Turns plant light off.
+*/
+void turnPlantLightOff() {
+  if (plantLightOn) {
+    plantLightOn = 0;
+    digitalWrite(plantLightPin, LOW);
+  }
+}
+
+/*
+ * Toggles plant light on/off according to button press.
+*/
+void plantLightToggle() {
+  static int plantLightButtonState = digitalRead(plantLightButtonPin);
+
+  if (plantLightButtonState == LOW) { //on press
+    if (plantLightToggleOff) {
+      plantLightToggleOff = 0;
+    } else {
+      plantLightToggleOff = 1;
+    }
+  }
+
+  if (plantLightToggleOff) {
+    digitalWrite(plantLightButtonPin, HIGH);
+  }
 }
 
 /*
