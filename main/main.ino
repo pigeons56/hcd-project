@@ -2,6 +2,10 @@
 
 RTC_DS3231 rtc; //Depends on what RTC we have
 
+int getHour();
+int getDay();
+void setTime();
+
 void setup() {
   // RTC Setup
   rtc.begin();
@@ -20,6 +24,14 @@ void loop() {
 int getHour() {
   DateTime now = rtc.now();
   return now.hour();
+}
+
+/*
+ * Returns the current day.
+ */
+int getDay() {
+  DateTime now = rtc.now();
+  return now.day();
 }
 
 /* 
