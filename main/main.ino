@@ -117,4 +117,3 @@ int getDay() {
 void setTime() {
   rtc.adjust(DateTime(2024, 11, 18, 4, 28, 0)); //yr, mon, day, hr, min, sec
 }
->>>>>>> 5aace20a068c975fa68eef930e8eeb66e58d46c2
