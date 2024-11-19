@@ -1,17 +1,24 @@
-#include <Adafruit_seesaw.h>
+#include <RTClib.h>
+#include "Adafruit_seesaw.h"
 
 #define WATER_INTERVAL_DAYS 7
 #define MIN_SOIL_MOISTURE 300
 
+RTC_DS3231 rtc; //Depends on what RTC we have
 Adafruit_seesaw ss;
 
+int getHour();
+int getDay();
+void setTime();
 bool needsWater();
 
-
 void setup() {
+  // RTC Setup
+  rtc.begin();
+  setTime(); //Comment out after done ONCE
+
   //Soil sensor setup
   ss.begin(0x36);
-
 }
 
 void loop() {
@@ -23,7 +30,7 @@ void loop() {
  * Returns 1 if either soil moisture is below a minimum OR a certain
  * number of days have passed since watering. Otherwise return 0.
 */
-bool needsWater(){
+bool needsWater() {
   static bool isWatered = 0;
   static bool isCountingDays = 0;
   static int hourNow = 0;
@@ -56,4 +63,26 @@ bool needsWater(){
     }
   }
   
+/*
+ * Returns the current hour.
+ */
+int getHour() {
+  DateTime now = rtc.now();
+  return now.hour();
+}
+
+/*
+ * Returns the current day.
+ */
+int getDay() {
+  DateTime now = rtc.now();
+  return now.day();
+}
+
+/* 
+ * One-time setup for the RTC. Time should save even when Arduino is not running.
+ * Run ONCE.
+ */
+void setTime() {
+  rtc.adjust(DateTime(2024, 11, 18, 4, 28, 0)); //yr, mon, day, hr, min, sec
 }
