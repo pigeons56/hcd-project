@@ -15,7 +15,6 @@ const int pumpPin = 1;
 const int floatSwitchPin = 2;
 const int ledPin = 3;
 const int plantLightPin = 4;
-const int plantLightOffPin = 5;
 const int plantLightButtonPin = 6;
 
 //Global vars
@@ -51,7 +50,6 @@ void setup() {
 
   //Plant light setup
   pinMode(plantLightPin, OUTPUT);
-  pinMode(plantLightOffPin, OUTPUT);
   pinMode(plantLightButtonPin, INPUT);
 }
 
@@ -120,9 +118,6 @@ void plantLightToggle() {
     }
   }
 
-  if (plantLightToggleOff) {
-    digitalWrite(plantLightButtonPin, HIGH);
-  }
 }
 
 /*
