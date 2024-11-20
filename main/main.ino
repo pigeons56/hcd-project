@@ -5,7 +5,7 @@
 //Constants
 #define WATER_INTERVAL_DAYS 7
 #define MIN_SOIL_MOISTURE 300
-#define PUMP_OPEN_COUNTS 1000
+#define PUMP_OPEN_MINS 3
 #define PLANT_LIGHT_ON_TIME 10
 #define PLANT_LIGHT_OFF_TIME 16
 
@@ -22,6 +22,7 @@ bool plantLightToggleOff = 0;
 bool plantLightOn = 0;
 
 //Function Prototypes
+int getMinute();
 int getHour();
 int getDay();
 void setTime();
@@ -68,7 +69,6 @@ void loop() {
   //Check water level
   readFloatSwitch();
 
-  delay(100);
 }
 
 /*
@@ -136,23 +136,32 @@ void readFloatSwitch() {
 }
 
 /*
- * Open pump depending on needsWater() value. Pump stays open for PUMP_OPEN_COUNTS.
+ * Open pump depending on needsWater() value. Pump stays open for PUMP_OPEN_MINS.
 */
 void waterPlant() {
   static bool pumpOpen = 0;
-  static int count = 0;
+  static int startMin = 0;
+  static int currentMin = 0;
+  static int minDiff = 0;
 
   if (pumpOpen) {
-    count++; //keep counting
+    currentMin = getMin();
 
-    if (count > PUMP_OPEN_COUNTS) { //after pump is open for a certain duration
-      count = 0; //reset counting
+    //Calculate how many mins have passed
+    if (currentMin >= startMin) { //did not pass the hour
+      minDiff = currentMin - startMin;
+    } else { //did pass the hour
+      minDiff = 60 - startMin + currentMin;
+    }
+
+    if (minDiff >= PUMP_OPEN_MINS) { //after pump is open for a certain duration
       pumpOpen = 0; //close pump
       digitalWrite(pumpPin, LOW); //physically close pump
     }
   } else {
       if (needsWater()) { //if water conditions are met
         pumpOpen = 1; //open pump
+        startMin = getMin(); //get start time
         digitalWrite(pumpPin, HIGH); //physically open pump
       }
   }
@@ -195,6 +204,14 @@ bool needsWater() {
       return 1; 
     }
   }
+}
+
+/*
+ * Returns the current minute.
+ */
+int getMin() {
+  DateTime now = rtc.now();
+  return now.minute();
 }
   
 /*
