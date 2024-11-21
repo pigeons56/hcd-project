@@ -2,7 +2,7 @@
 #include "Adafruit_seesaw.h"
 
 //Constants
-#define MIN_SOIL_MOISTURE 300
+#define MIN_SOIL_MOISTURE 600
 
 Adafruit_seesaw ss;
 const int pumpPin = 9;
@@ -28,8 +28,10 @@ void loop() {
 
 void waterPlant() {
   if (needsWater()) {
+    Serial.println("PUMP ON");
     digitalWrite(pumpPin, HIGH);
   } else {
+    Serial.println("PUMP OFF");
     digitalWrite(pumpPin, LOW);
   }
 
@@ -38,12 +40,12 @@ void waterPlant() {
 bool needsWater() {
   //water based on soil moisture
   uint16_t capread = ss.touchRead(0);
-  Serial.write(capread);
+  Serial.println(capread);
   if(capread < MIN_SOIL_MOISTURE) {
-    Serial.write("SOIL IS DRY");
+    Serial.println("SOIL IS DRY");
     return 1;
   } else {
-    Serial.write("SOIL IS WET");
+    Serial.println("SOIL IS WET");
     return 0;
   }
 }
