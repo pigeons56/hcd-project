@@ -22,6 +22,7 @@ bool plantLightToggleOff = 0;
 bool plantLightOn = 0;
 
 //Function Prototypes
+int getSec();
 int getHour();
 int getDay();
 void setTime();
@@ -68,14 +69,13 @@ void loop() {
   //Check water level
   readFloatSwitch();
 
-  delay(100);
 }
 
 /*
  * Turns plant light on/off according to current hour.
 */
 void timePlantLight() {
-  static int hour = getHour();
+  int hour = getHour;
 
   if (hour < PLANT_LIGHT_OFF_TIME && hour >= PLANT_LIGHT_ON_TIME) {
     turnPlantLightOn();
@@ -108,7 +108,7 @@ void turnPlantLightOff() {
  * Toggles plant light on/off according to button press.
 */
 void plantLightToggle() {
-  static int plantLightButtonState = digitalRead(plantLightButtonPin);
+  int plantLightButtonState = digitalRead(plantLightButtonPin);
 
   if (plantLightButtonState == LOW) { //on press
     if (plantLightToggleOff) {
@@ -126,7 +126,7 @@ void plantLightToggle() {
  * is HIGH (water level is low), turn on LED.
 */
 void readFloatSwitch() {
-  static bool floatSwitchState = digitalRead(floatSwitchPin);
+  bool floatSwitchState = digitalRead(floatSwitchPin);
 
   if (floatSwitchState == LOW) {
     digitalWrite(ledPin, LOW);
@@ -136,23 +136,32 @@ void readFloatSwitch() {
 }
 
 /*
- * Open pump depending on needsWater() value. Pump stays open for PUMP_OPEN_COUNTS.
+ * Open pump depending on needsWater() value. Pump stays open for PUMP_OPEN_SECS.
 */
 void waterPlant() {
   static bool pumpOpen = 0;
-  static int count = 0;
+  static int startSec = 0;
+  static int currentSec = 0;
+  static int secDiff = 0;
 
   if (pumpOpen) {
-    count++; //keep counting
+    currentSec = getSec();
 
-    if (count > PUMP_OPEN_COUNTS) { //after pump is open for a certain duration
-      count = 0; //reset counting
+    //Calculate how many mins have passed
+    if (currentSec >= startSec) { //did not pass the hour
+      secDiff = currentSec - startSec;
+    } else { //did pass the hour
+      secDiff = 60 - startSec + currentSec;
+    }
+
+    if (secDiff >= PUMP_OPEN_SECS) { //after pump is open for a certain duration
       pumpOpen = 0; //close pump
       digitalWrite(pumpPin, LOW); //physically close pump
     }
   } else {
       if (needsWater()) { //if water conditions are met
         pumpOpen = 1; //open pump
+        startSec = getSec(); //get start time
         digitalWrite(pumpPin, HIGH); //physically open pump
       }
   }
@@ -195,6 +204,14 @@ bool needsWater() {
       return 1; 
     }
   }
+}
+
+/*
+ * Returns the current second.
+ */
+int getSec() {
+  DateTime now = rtc.now();
+  return now.second();
 }
   
 /*

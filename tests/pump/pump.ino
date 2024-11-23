@@ -12,10 +12,13 @@ void loop() {
   buttonState = digitalRead(buttonPin);
 
   if (buttonState == LOW) {
-    Serial.print("pressed");
+    Serial.println("pressed");
+    delay(200);
     digitalWrite(transistorPin, HIGH);
   } else {
-    Serial.print("not");
+    Serial.println("not");
+    delay(200);
     digitalWrite(transistorPin, LOW);
   }
+  
 }
