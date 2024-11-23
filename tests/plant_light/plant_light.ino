@@ -2,6 +2,8 @@ const int buttonPin = 12;
 const int plantLightPin = 4;
 
 bool toggleOff = 0;
+int prevState = 0;
+int buttonState = 0;
 
 void setup() {
   pinMode(plantLightPin, OUTPUT);
@@ -9,9 +11,9 @@ void setup() {
   Serial.begin(9600);
 }
 void loop() {
-  int buttonState = digitalRead(buttonPin);
+  buttonState = digitalRead(buttonPin);
 
-  if (buttonState == LOW) { //pressed
+  if (prevState == HIGH && buttonState == LOW) { //pressed
     Serial.println("PRESSED");
     toggleOff != toggleOff;  
   } 
@@ -21,4 +23,6 @@ void loop() {
   } else {
     digitalWrite(plantLightPin, HIGH); //HIGH is light on
   }
+
+  prevState = buttonState;
 }
