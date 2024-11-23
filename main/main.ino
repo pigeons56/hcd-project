@@ -75,7 +75,7 @@ void loop() {
  * Turns plant light on/off according to current hour.
 */
 void timePlantLight() {
-  static int hour = getHour();
+  int hour = getHour;
 
   if (hour < PLANT_LIGHT_OFF_TIME && hour >= PLANT_LIGHT_ON_TIME) {
     turnPlantLightOn();
@@ -108,7 +108,7 @@ void turnPlantLightOff() {
  * Toggles plant light on/off according to button press.
 */
 void plantLightToggle() {
-  static int plantLightButtonState = digitalRead(plantLightButtonPin);
+  int plantLightButtonState = digitalRead(plantLightButtonPin);
 
   if (plantLightButtonState == LOW) { //on press
     if (plantLightToggleOff) {
@@ -126,7 +126,7 @@ void plantLightToggle() {
  * is HIGH (water level is low), turn on LED.
 */
 void readFloatSwitch() {
-  static bool floatSwitchState = digitalRead(floatSwitchPin);
+  bool floatSwitchState = digitalRead(floatSwitchPin);
 
   if (floatSwitchState == LOW) {
     digitalWrite(ledPin, LOW);
@@ -148,7 +148,7 @@ void waterPlant() {
     currentSec = getSec();
 
     //Calculate how many mins have passed
-    if (currentMin >= startSec) { //did not pass the hour
+    if (currentSec >= startSec) { //did not pass the hour
       secDiff = currentSec - startSec;
     } else { //did pass the hour
       secDiff = 60 - startSec + currentSec;
