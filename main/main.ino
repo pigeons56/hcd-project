@@ -5,7 +5,7 @@
 //Constants
 #define WATER_INTERVAL_DAYS 7
 #define MIN_SOIL_MOISTURE 300
-#define PUMP_OPEN_MINS 3
+#define PUMP_OPEN_SECS 3
 #define PLANT_LIGHT_ON_TIME 10
 #define PLANT_LIGHT_OFF_TIME 16
 
@@ -22,7 +22,7 @@ bool plantLightToggleOff = 0;
 bool plantLightOn = 0;
 
 //Function Prototypes
-int getMinute();
+int getSec();
 int getHour();
 int getDay();
 void setTime();
@@ -136,32 +136,32 @@ void readFloatSwitch() {
 }
 
 /*
- * Open pump depending on needsWater() value. Pump stays open for PUMP_OPEN_MINS.
+ * Open pump depending on needsWater() value. Pump stays open for PUMP_OPEN_SECS.
 */
 void waterPlant() {
   static bool pumpOpen = 0;
-  static int startMin = 0;
-  static int currentMin = 0;
-  static int minDiff = 0;
+  static int startSec = 0;
+  static int currentSec = 0;
+  static int secDiff = 0;
 
   if (pumpOpen) {
-    currentMin = getMin();
+    currentSec = getSec();
 
     //Calculate how many mins have passed
-    if (currentMin >= startMin) { //did not pass the hour
-      minDiff = currentMin - startMin;
+    if (currentMin >= startSec) { //did not pass the hour
+      secDiff = currentSec - startSec;
     } else { //did pass the hour
-      minDiff = 60 - startMin + currentMin;
+      secDiff = 60 - startSec + currentSec;
     }
 
-    if (minDiff >= PUMP_OPEN_MINS) { //after pump is open for a certain duration
+    if (secDiff >= PUMP_OPEN_SECS) { //after pump is open for a certain duration
       pumpOpen = 0; //close pump
       digitalWrite(pumpPin, LOW); //physically close pump
     }
   } else {
       if (needsWater()) { //if water conditions are met
         pumpOpen = 1; //open pump
-        startMin = getMin(); //get start time
+        startSec = getSec(); //get start time
         digitalWrite(pumpPin, HIGH); //physically open pump
       }
   }
@@ -207,11 +207,11 @@ bool needsWater() {
 }
 
 /*
- * Returns the current minute.
+ * Returns the current second.
  */
-int getMin() {
+int getSec() {
   DateTime now = rtc.now();
-  return now.minute();
+  return now.second();
 }
   
 /*
