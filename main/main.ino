@@ -4,10 +4,10 @@
 
 //Constants
 #define WATER_INTERVAL_DAYS 7
-#define MIN_SOIL_MOISTURE 300
-#define PUMP_OPEN_COUNTS 1000
-#define PLANT_LIGHT_ON_TIME 10
-#define PLANT_LIGHT_OFF_TIME 16
+#define MIN_SOIL_MOISTURE 350
+#define PUMP_OPEN_SECS 264
+#define PLANT_LIGHT_ON_TIME 9
+#define PLANT_LIGHT_OFF_TIME 5
 
 RTC_DS3231 rtc; //Depends on what RTC we have
 Adafruit_seesaw ss;
