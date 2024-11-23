@@ -2,7 +2,7 @@
 #include "Adafruit_seesaw.h"
 
 //Constants
-#define MIN_SOIL_MOISTURE 800
+#define MIN_SOIL_MOISTURE 1000
 
 Adafruit_seesaw ss;
 const int pumpPin = 9;
