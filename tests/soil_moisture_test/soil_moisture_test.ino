@@ -2,7 +2,7 @@
 #include "Adafruit_seesaw.h"
 
 //Constants
-#define MIN_SOIL_MOISTURE 600
+#define MIN_SOIL_MOISTURE 800
 
 Adafruit_seesaw ss;
 const int pumpPin = 9;
@@ -21,8 +21,13 @@ void setup() {
   //Serial monitor
   Serial.begin(9600);
 }
+int reading;
 
 void loop() {
+  reading = digitalRead(pumpPin);
+
+  Serial.println(reading);
+
   waterPlant();
 }
 
