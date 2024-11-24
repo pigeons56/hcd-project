@@ -46,9 +46,9 @@ void setup() {
   Serial.begin(9600);
 }
 void loop() {
-  toggleLight();
+  //toggleLight();
   readFloatSensor();
-  waterPlant();
+  //waterPlant();
   
 }
 
@@ -65,7 +65,7 @@ void toggleLight() {
 
   if (prevState == HIGH && buttonState == LOW //pressed
       && millisDiff >= FLOAT_SENSOR_DELAY_MILLIS ) { //delay has passed
-    //Serial.println("PRESSED");
+    Serial.println("PRESSED");
     startMillis = millis();
     toggleOff != toggleOff;  
   } 
@@ -79,18 +79,25 @@ void toggleLight() {
   prevState = buttonState;
 }
 
+/*
+ * Reads state of float sensor. LOW is when 
+*/
 void readFloatSensor() {
   bool floatSensorState = digitalRead(floatSensorPin);
 
   if (floatSensorState == LOW) {
-    //Serial.println("Sensor is LOW");
+    Serial.println("Sensor is LOW");
     digitalWrite(ledPin, HIGH);
   } else {
-    //Serial.println("Sensor is HIGH");
+    Serial.println("Sensor is HIGH");
     digitalWrite(ledPin, LOW);
   }
 }
 
+/*
+ * If plant needs watering (determined by needsWater()), open 
+ * pump for a certain amount of seconds (PUMP_OPEN_SECS)
+*/
 void waterPlant() {
   static bool pumpOpen = 0;
   static unsigned long startMillis = 0;
@@ -116,6 +123,12 @@ void waterPlant() {
 
 }
 
+/*
+ * Returns 0 if plant doesn't need water, 1 if plant needs water.
+ * Needs water is determined by:
+ *  1. Soil moisture goes below minimum soil moisture (MIN_SOIL_MOISTURE)
+ *  2. Days without being watered passes set interval (WATER_INTERVAL_DAYS)
+*/
 bool needsWater() {
   static bool isWatered = 0;
   static bool isCounting = 0;
@@ -146,6 +159,9 @@ bool needsWater() {
   }
 }
 
+/*
+ * Calculates the difference between start and current milliseconds.
+*/
 unsigned long getMillisDiff(unsigned long start, unsigned long current) {
   if (current >= start) {
     return start - current;
