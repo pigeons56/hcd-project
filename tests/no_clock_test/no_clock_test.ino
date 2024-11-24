@@ -2,8 +2,10 @@
 #include "Adafruit_seesaw.h"
 
 //Parameters
+#define WATER_INTERVAL_DAYS 7
 #define MIN_SOIL_MOISTURE 1000
 #define PUMP_OPEN_SECS 10
+#define FLOAT_SENSOR_DELAY_MILLIS 600
 
 //Constants
 const int buttonPin = 12;
@@ -20,6 +22,7 @@ void toggleLight();
 void readFloatSensor();
 bool needsWater();
 void waterPlant();
+unsigned long getMillisDiff(unsigned long start, unsigned long current);
 
 //counter
 int secondsPassed = 0;
@@ -47,22 +50,23 @@ void loop() {
   readFloatSensor();
   waterPlant();
   
-  //Clock subsitute
-  delay(1000);
-  if (secondsPassed > 59) {
-    secondsPassed = 0;
-  } else {
-    secondsPassed++;
-  }
 }
 
 void toggleLight() {
   static bool prevState = HIGH;
   static bool toggleOff = 0;
   bool buttonState = digitalRead(buttonPin);
+  static unsigned long startMillis = 0;
+  static unsigned long currentMillis = 0;
+  static unsigned long millisDiff = 0;
 
-  if (prevState == HIGH && buttonState == LOW) { //pressed
+  currentMillis = millis();
+  millisDiff = getMillisDiff(startMillis, currentMillis);
+
+  if (prevState == HIGH && buttonState == LOW //pressed
+      && millisDiff >= FLOAT_SENSOR_DELAY_MILLIS ) { //delay has passed
     //Serial.println("PRESSED");
+    startMillis = millis();
     toggleOff != toggleOff;  
   } 
 
@@ -89,32 +93,23 @@ void readFloatSensor() {
 
 void waterPlant() {
   static bool pumpOpen = 0;
-  static int startSec = 0;
-  static int currentSec = 0;
-  static int secDiff = 0;
-  static int totSecsPassed = 0;
+  static unsigned long startMillis = 0;
+  static unsigned long currentMillis = 0;
+  static unsigned long millisDiff = 0;
 
   if (pumpOpen) {
-    currentSec = secondsPassed;
+    currentMillis = millis();
+    millisDiff = getMillisDiff(startMillis, currentMillis);
+    
 
-    //Calculate how many secs have passed
-    if (currentSec >= startSec) { //did not pass the min
-      secDiff = currentSec - startSec;
-    } else { //did pass the min
-      secDiff = 60 - startSec + currentSec;
-    }
-
-    totSecsPassed += secDiff;
-    startSec = currentSec;
-
-    if (totSecsPassed >= PUMP_OPEN_SECS) { //after pump is open for a certain duration
+    if (millisDiff >= PUMP_OPEN_SECS * 1000) { //after pump is open for a certain duration
       pumpOpen = 0; //close pump
       digitalWrite(pumpPin, LOW); //physically close pump
     }
   } else {
       if (needsWater()) { //if water conditions are met
         pumpOpen = 1; //open pump
-        startSec = secondsPassed; //get start time
+        startMillis = millis(); //get start time
         digitalWrite(pumpPin, HIGH); //physically open pump
       }
   }
@@ -122,14 +117,39 @@ void waterPlant() {
 }
 
 bool needsWater() {
+  static bool isWatered = 0;
+  static bool isCounting = 0;
+  static unsigned long startMillis = 0;
+  static unsigned long currentMillis = 0;
+  static unsigned long millisDiff = 0;
+
   //water based on soil moisture
   uint16_t capread = ss.touchRead(0);
-  Serial.println(capread);
   if(capread < MIN_SOIL_MOISTURE) {
-    //Serial.println("SOIL IS DRY");
+    isCounting = 0; //reset count
     return 1;
   } else {
-    //Serial.println("SOIL IS WET");
     return 0;
+  }
+
+  //water based on time (if not watered already)
+  if (!isCounting) {
+    startMillis = millis();
+    isCounting = 1; //start counting
+  } else {
+    currentMillis = millis();
+    millisDiff = getMillisDiff(startMillis, currentMillis);
+    if (millisDiff >= WATER_INTERVAL_DAYS * 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
+      isCounting = 0; //reset count
+      return 1; 
+    }
+  }
+}
+
+unsigned long getMillisDiff(unsigned long start, unsigned long current) {
+  if (current >= start) {
+    return start - current;
+  } else { //overflow occurred, millis() reset
+    return 4294967295 - start + current;
   }
 }
