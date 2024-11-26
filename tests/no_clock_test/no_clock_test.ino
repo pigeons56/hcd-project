@@ -2,13 +2,13 @@
 #include "Adafruit_seesaw.h"
 
 //Parameters
-#define WATER_INTERVAL_DAYS 7
-#define MIN_SOIL_MOISTURE 1000
-#define PUMP_OPEN_SECS 10
-#define FLOAT_SENSOR_DELAY_MILLIS 600
+#define WATER_INTERVAL_DAYS 30
+#define MIN_SOIL_MOISTURE 500
+#define PUMP_OPEN_SECS 5
+#define FLOAT_SENSOR_DELAY_MILLIS 150
 
 //Constants
-const int buttonPin = 12;
+const int buttonPin = 13;
 const int plantLightPin = 4;
 const int floatSensorPin = 2;
 const int ledPin = 7;
@@ -46,9 +46,9 @@ void setup() {
   Serial.begin(9600);
 }
 void loop() {
-  //toggleLight();
+  toggleLight();
   readFloatSensor();
-  //waterPlant();
+  waterPlant();
   
 }
 
@@ -67,12 +67,14 @@ void toggleLight() {
       && millisDiff >= FLOAT_SENSOR_DELAY_MILLIS ) { //delay has passed
     Serial.println("PRESSED");
     startMillis = millis();
-    toggleOff != toggleOff;  
+    toggleOff = !toggleOff;  
   } 
 
   if (toggleOff) {
+    //Serial.println("OFF");
     digitalWrite(plantLightPin, LOW);
   } else {
+    //Serial.println("ON");
     digitalWrite(plantLightPin, HIGH); //HIGH is light on
   }
 
@@ -86,10 +88,10 @@ void readFloatSensor() {
   bool floatSensorState = digitalRead(floatSensorPin);
 
   if (floatSensorState == LOW) {
-    Serial.println("Sensor is LOW");
+    //Serial.println("Sensor is LOW");
     digitalWrite(ledPin, HIGH);
   } else {
-    Serial.println("Sensor is HIGH");
+    //Serial.println("Sensor is HIGH");
     digitalWrite(ledPin, LOW);
   }
 }
@@ -112,11 +114,13 @@ void waterPlant() {
     if (millisDiff >= PUMP_OPEN_SECS * 1000) { //after pump is open for a certain duration
       pumpOpen = 0; //close pump
       digitalWrite(pumpPin, LOW); //physically close pump
+      Serial.println("CLOSE PUMP----------------------------------------------------");
     }
   } else {
       if (needsWater()) { //if water conditions are met
         pumpOpen = 1; //open pump
         startMillis = millis(); //get start time
+        Serial.println("OPEN PUMP************");
         digitalWrite(pumpPin, HIGH); //physically open pump
       }
   }
@@ -135,28 +139,34 @@ bool needsWater() {
   static unsigned long startMillis = 0;
   static unsigned long currentMillis = 0;
   static unsigned long millisDiff = 0;
+  bool retVal = 0;
 
   //water based on soil moisture
   uint16_t capread = ss.touchRead(0);
+  Serial.println(capread);
   if(capread < MIN_SOIL_MOISTURE) {
     isCounting = 0; //reset count
-    return 1;
+    retVal = 1;
   } else {
-    return 0;
+    retVal = 0;
   }
 
   //water based on time (if not watered already)
   if (!isCounting) {
+    Serial.println("START COUNTING");
     startMillis = millis();
     isCounting = 1; //start counting
   } else {
     currentMillis = millis();
     millisDiff = getMillisDiff(startMillis, currentMillis);
-    if (millisDiff >= WATER_INTERVAL_DAYS * 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
+    if (millisDiff >= WATER_INTERVAL_DAYS * 1000) { //* 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
       isCounting = 0; //reset count
-      return 1; 
+      Serial.println("TIME MET");
+      retVal = 1; 
     }
   }
+
+  return retVal;
 }
 
 /*
@@ -164,7 +174,7 @@ bool needsWater() {
 */
 unsigned long getMillisDiff(unsigned long start, unsigned long current) {
   if (current >= start) {
-    return start - current;
+    return current - start;
   } else { //overflow occurred, millis() reset
     return 4294967295 - start + current;
   }
