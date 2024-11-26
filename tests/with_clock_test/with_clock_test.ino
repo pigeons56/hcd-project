@@ -3,9 +3,9 @@
 
 //Parameters
 #define WATER_INTERVAL_DAYS 30
-#define MIN_SOIL_MOISTURE 800
+#define MIN_SOIL_MOISTURE 500
 #define PUMP_OPEN_SECS 5
-#define FLOAT_SENSOR_DELAY_MILLIS 250
+#define FLOAT_SENSOR_DELAY_MILLIS 150
 
 //Constants
 const int buttonPin = 13;
@@ -16,6 +16,7 @@ const int pumpPin = 9;
 
 //Objects
 Adafruit_seesaw ss;
+RTC_DS3231 rtc;
 
 //Function Prototypes
 void toggleLight();
@@ -23,6 +24,8 @@ void readFloatSensor();
 bool needsWater();
 void waterPlant();
 unsigned long getMillisDiff(unsigned long start, unsigned long current);
+void setTime();
+int getHour();
 
 //counter
 int secondsPassed = 0;
@@ -42,11 +45,15 @@ void setup() {
   //Water pump setup
   pinMode(pumpPin, OUTPUT);
 
+  // RTC Setup
+  rtc.begin();
+  setTime(); //Comment out after done ONCE
+
   //Serial monitor setup
   Serial.begin(9600);
 }
 void loop() {
-  //toggleLight();
+  toggleLight();
   readFloatSensor();
   waterPlant();
   
@@ -58,14 +65,13 @@ void loop() {
 void toggleLight() {
   static bool prevState = HIGH;
   static bool toggleOff = 0;
+  bool buttonState = digitalRead(buttonPin);
   static unsigned long startMillis = 0;
   static unsigned long currentMillis = 0;
   static unsigned long millisDiff = 0;
-  bool buttonState = digitalRead(buttonPin);
 
   currentMillis = millis();
   millisDiff = getMillisDiff(startMillis, currentMillis);
-  //Serial.println(buttonState);
 
   if (prevState == HIGH && buttonState == LOW //pressed
       && millisDiff >= FLOAT_SENSOR_DELAY_MILLIS ) { //delay has passed
@@ -73,7 +79,7 @@ void toggleLight() {
     startMillis = millis();
     toggleOff = !toggleOff;  
   } 
- 
+
   if (toggleOff) {
     //Serial.println("OFF");
     digitalWrite(plantLightPin, LOW);
@@ -182,4 +188,20 @@ unsigned long getMillisDiff(unsigned long start, unsigned long current) {
   } else { //overflow occurred, millis() reset
     return 4294967295 - start + current;
   }
+}
+
+/*
+ * Returns the current hour.
+ */
+int getHour() {
+  DateTime now = rtc.now();
+  return now.hour();
+}
+
+/* 
+ * One-time setup for the RTC. Time should save even when Arduino is not running.
+ * Run ONCE.
+ */
+void setTime() {
+  rtc.adjust(DateTime(2024, 11, 18, 4, 28, 0)); //yr, mon, day, hr, min, sec
 }
