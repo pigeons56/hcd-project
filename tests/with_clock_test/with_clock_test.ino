@@ -6,6 +6,8 @@
 #define MIN_SOIL_MOISTURE 500
 #define PUMP_OPEN_SECS 5
 #define FLOAT_SENSOR_DELAY_MILLIS 150
+#define PLANT_LIGHT_ON_HR 9
+#define PLANT_LIGHT_OFF_HR 17
 
 //Constants
 const int buttonPin = 13;
@@ -19,16 +21,14 @@ Adafruit_seesaw ss;
 RTC_DS3231 rtc;
 
 //Function Prototypes
-void toggleLight();
+bool togglePlantLight();
 void readFloatSensor();
 bool needsWater();
 void waterPlant();
 unsigned long getMillisDiff(unsigned long start, unsigned long current);
-void setTime();
+void controlPlantLight();
 int getHour();
-
-//counter
-int secondsPassed = 0;
+bool timePlantLight();
 
 void setup() {
   //Plant light setup
@@ -52,26 +52,58 @@ void setup() {
   //Serial monitor setup
   Serial.begin(9600);
 }
+
 void loop() {
-  toggleLight();
+  controlPlantLight();s
   readFloatSensor();
   waterPlant();
   
 }
 
 /*
+ * Returns 1 (on) or 0 (off) according to defined hour interval.
+*/
+bool timePlantLight() {
+  int hour = getHour();
+
+  if (hour >= PLANT_LIGHT_ON_HR && hour < PLANT_LIGHT_OFF_HR) {
+    return 1;
+  } else {
+    return 0;
+  }  
+}
+
+/*
+ * Physically turns plant light on/off according to toggle
+ * or defined hour interval. Toggle control overrides scheduled
+ * turning on/off according to hour interval.
+*/
+void controlPlantLight() {
+  bool toggleOff = togglePlantLight();
+  bool lightOn = timePlantLight();
+  if (toggleOff) {
+    //Serial.println("OFF");
+    digitalWrite(plantLightPin, LOW);
+  } else (!toggleOff && lightOn) {
+    //Serial.println("ON");
+    digitalWrite(plantLightPin, HIGH); //HIGH is light on
+  }
+}
+
+/*
  * Toggle plant light on and off according to button press.
 */
-void toggleLight() {
+bool togglePlantLight() {
   static bool prevState = HIGH;
   static bool toggleOff = 0;
-  bool buttonState = digitalRead(buttonPin);
   static unsigned long startMillis = 0;
   static unsigned long currentMillis = 0;
   static unsigned long millisDiff = 0;
+  bool buttonState = digitalRead(buttonPin);
 
   currentMillis = millis();
   millisDiff = getMillisDiff(startMillis, currentMillis);
+  //Serial.println(buttonState);
 
   if (prevState == HIGH && buttonState == LOW //pressed
       && millisDiff >= FLOAT_SENSOR_DELAY_MILLIS ) { //delay has passed
@@ -80,15 +112,9 @@ void toggleLight() {
     toggleOff = !toggleOff;  
   } 
 
-  if (toggleOff) {
-    //Serial.println("OFF");
-    digitalWrite(plantLightPin, LOW);
-  } else {
-    //Serial.println("ON");
-    digitalWrite(plantLightPin, HIGH); //HIGH is light on
-  }
-
   prevState = buttonState;
+
+  return toggleOff;
 }
 
 /*
