@@ -1,10 +1,11 @@
 //Libraries
 #include "Adafruit_seesaw.h"
+#include "RTClib.h"
 
 //Parameters
-#define WATER_INTERVAL_DAYS 30
-#define MIN_SOIL_MOISTURE 500
-#define PUMP_OPEN_SECS 5
+#define WATER_INTERVAL_DAYS 1
+#define MIN_SOIL_MOISTURE 400
+#define PUMP_OPEN_SECS 30
 #define FLOAT_SENSOR_DELAY_MILLIS 150
 #define PLANT_LIGHT_ON_HR 9
 #define PLANT_LIGHT_OFF_HR 17
@@ -47,7 +48,6 @@ void setup() {
 
   // RTC Setup
   rtc.begin();
-  setTime(); //Comment out after done ONCE
 
   //Serial monitor setup
   Serial.begin(9600);
@@ -222,12 +222,4 @@ unsigned long getMillisDiff(unsigned long start, unsigned long current) {
 int getHour() {
   DateTime now = rtc.now();
   return now.hour();
-}
-
-/* 
- * One-time setup for the RTC. Time should save even when Arduino is not running.
- * Run ONCE.
- */
-void setTime() {
-  rtc.adjust(DateTime(2024, 11, 18, 4, 28, 0)); //yr, mon, day, hr, min, sec
 }
