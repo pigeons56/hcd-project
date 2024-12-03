@@ -1,14 +1,14 @@
 //Libraries
 #include "Adafruit_seesaw.h"
-#include "RTClib.h"
+#include <I2C_RTC.h>
 
 //Parameters
 #define WATER_INTERVAL_DAYS 1
-#define MIN_SOIL_MOISTURE 400
+#define MIN_SOIL_MOISTURE 1000
 #define PUMP_OPEN_SECS 30
 #define FLOAT_SENSOR_DELAY_MILLIS 150
 #define PLANT_LIGHT_ON_HR 9
-#define PLANT_LIGHT_OFF_HR 17
+#define PLANT_LIGHT_OFF_HR 24
 
 //Constants
 const int buttonPin = 13;
@@ -19,7 +19,7 @@ const int pumpPin = 9;
 
 //Objects
 Adafruit_seesaw ss;
-RTC_DS3231 rtc;
+static DS3231 RTC;
 
 //Function Prototypes
 bool togglePlantLight();
@@ -47,14 +47,14 @@ void setup() {
   pinMode(pumpPin, OUTPUT);
 
   // RTC Setup
-  rtc.begin();
+  RTC.begin();
 
   //Serial monitor setup
   Serial.begin(9600);
 }
 
 void loop() {
-  controlPlantLight();s
+  controlPlantLight();
   readFloatSensor();
   waterPlant();
   
@@ -65,6 +65,7 @@ void loop() {
 */
 bool timePlantLight() {
   int hour = getHour();
+  //Serial.println(hour);
 
   if (hour >= PLANT_LIGHT_ON_HR && hour < PLANT_LIGHT_OFF_HR) {
     return 1;
@@ -81,10 +82,16 @@ bool timePlantLight() {
 void controlPlantLight() {
   bool toggleOff = togglePlantLight();
   bool lightOn = timePlantLight();
+  //Serial.print("Toggleoff: ");
+  //Serial.println(toggleOff);
+
+  //Serial.print("Lighton: ");
+  //Serial.println(lightOn);
+  
   if (toggleOff) {
     //Serial.println("OFF");
     digitalWrite(plantLightPin, LOW);
-  } else (!toggleOff && lightOn) {
+  } else if (!toggleOff && lightOn) {
     //Serial.println("ON");
     digitalWrite(plantLightPin, HIGH); //HIGH is light on
   }
@@ -189,7 +196,7 @@ bool needsWater() {
 
   //water based on time (if not watered already)
   if (!isCounting) {
-    Serial.println("START COUNTING");
+    //Serial.println("START COUNTING");
     startMillis = millis();
     isCounting = 1; //start counting
   } else {
@@ -197,7 +204,7 @@ bool needsWater() {
     millisDiff = getMillisDiff(startMillis, currentMillis);
     if (millisDiff >= WATER_INTERVAL_DAYS * 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
       isCounting = 0; //reset count
-      Serial.println("TIME MET");
+      //Serial.println("TIME MET");
       retVal = 1; 
     }
   }
@@ -220,6 +227,5 @@ unsigned long getMillisDiff(unsigned long start, unsigned long current) {
  * Returns the current hour.
  */
 int getHour() {
-  DateTime now = rtc.now();
-  return now.hour();
+  return RTC.getHours();
 }

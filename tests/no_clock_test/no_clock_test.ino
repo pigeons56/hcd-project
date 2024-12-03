@@ -3,8 +3,8 @@
 
 //Parameters
 #define WATER_INTERVAL_DAYS 30
-#define MIN_SOIL_MOISTURE 800
-#define PUMP_OPEN_SECS 5
+#define MIN_SOIL_MOISTURE 1000
+#define PUMP_OPEN_SECS 20
 #define FLOAT_SENSOR_DELAY_MILLIS 250
 
 //Constants

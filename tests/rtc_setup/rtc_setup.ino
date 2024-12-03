@@ -3,8 +3,8 @@
 RTC_DS3231 rtc;
 
 void setup() {
-  setTime(); //comment out after run once
   Serial.begin(9600);
+  setTime(); //comment out after run once
 }
 
 void loop() {
@@ -29,6 +29,6 @@ void loop() {
  * Run ONCE.
  */
 void setTime() {
-  rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0)); //yr mon day hr min sec
+  rtc.adjust(DateTime(2024, 12, 2, 23, 4, 0)); //yr mon day hr min sec
   //24-hr format
 }
