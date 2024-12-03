@@ -7,8 +7,8 @@
 #define MIN_SOIL_MOISTURE 1000
 #define PUMP_OPEN_SECS 30
 #define FLOAT_SENSOR_DELAY_MILLIS 150
-#define PLANT_LIGHT_ON_HR 9
-#define PLANT_LIGHT_OFF_HR 24
+#define START_HR 10
+#define END_HR 6
 
 //Constants
 const int buttonPin = 13;
@@ -29,7 +29,6 @@ void waterPlant();
 unsigned long getMillisDiff(unsigned long start, unsigned long current);
 void controlPlantLight();
 int getHour();
-bool timePlantLight();
 
 void setup() {
   //Plant light setup
@@ -54,24 +53,13 @@ void setup() {
 }
 
 void loop() {
-  controlPlantLight();
-  readFloatSensor();
-  waterPlant();
-  
-}
-
-/*
- * Returns 1 (on) or 0 (off) according to defined hour interval.
-*/
-bool timePlantLight() {
   int hour = getHour();
-  //Serial.println(hour);
 
-  if (hour >= PLANT_LIGHT_ON_HR && hour < PLANT_LIGHT_OFF_HR) {
-    return 1;
-  } else {
-    return 0;
-  }  
+  if (hour >= START_HR && hour < END_HR) { //only allow pumping/lights during daylight hours
+    controlPlantLight();
+    readFloatSensor();
+    waterPlant();
+  }
 }
 
 /*
@@ -81,17 +69,11 @@ bool timePlantLight() {
 */
 void controlPlantLight() {
   bool toggleOff = togglePlantLight();
-  bool lightOn = timePlantLight();
-  //Serial.print("Toggleoff: ");
-  //Serial.println(toggleOff);
-
-  //Serial.print("Lighton: ");
-  //Serial.println(lightOn);
   
   if (toggleOff) {
     //Serial.println("OFF");
     digitalWrite(plantLightPin, LOW);
-  } else if (!toggleOff && lightOn) {
+  } else if (!toggleOff) {
     //Serial.println("ON");
     digitalWrite(plantLightPin, HIGH); //HIGH is light on
   }
