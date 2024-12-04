@@ -16,15 +16,15 @@ void setup()
     //RTC.setMeridiem(HOUR_PM);
   }
 
-  RTC.setDay(2);
+  RTC.setDay(4);
   RTC.setMonth(12);
   RTC.setYear(2024);
 
-  RTC.setHours(23);
-  RTC.setMinutes(10);
-  RTC.setSeconds(00);
+  RTC.setHours(0);
+  RTC.setMinutes(29);
+  RTC.setSeconds(0);
 
-  RTC.setWeek(2);
+  RTC.setWeek(3);
 
   //RTC.setDate(22,07,29);
   //RTC.setTime(22,10,20);

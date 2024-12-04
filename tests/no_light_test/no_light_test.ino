@@ -4,8 +4,8 @@
 
 //Parameters
 #define WATER_INTERVAL_DAYS 30
-#define MIN_SOIL_MOISTURE 1000
-#define PUMP_OPEN_SECS 30
+#define MIN_SOIL_MOISTURE 800
+#define PUMP_OPEN_SECS 15
 #define FLOAT_SENSOR_DELAY_MILLIS 150
 #define START_HR 0//10
 #define END_HR 24 //18
@@ -46,6 +46,7 @@ void setup() {
 
 void loop() {
   int hour = getHour();
+  //Serial.println(hour);
 
   if (hour >= START_HR && hour < END_HR) { //only allow pumping/lights during daylight hours
     readFloatSensor();
@@ -125,7 +126,7 @@ bool needsWater() {
 
   //water based on time (if not watered already)
   if (!isCounting) {
-    //Serial.println("START COUNTING");
+    Serial.println("START COUNTING");
     startMillis = millis();
     isCounting = 1; //start counting
   } else {
