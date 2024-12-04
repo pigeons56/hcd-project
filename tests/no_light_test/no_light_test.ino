@@ -75,29 +75,39 @@ void readFloatSensor() {
 */
 void waterPlant() {
   static bool pumpOpen = 0;
-  static unsigned long startMillis = 0;
+  static unsigned long pumpStartMillis = 0;
+  static unsigned long dayCountStartMillis = 0;
   static unsigned long currentMillis = 0;
   static unsigned long millisDiff = 0;
+  static bool isWateredToday = 0;
 
-  if (pumpOpen) {
-    currentMillis = millis();
-    millisDiff = getMillisDiff(startMillis, currentMillis);
-    
+  if (!isWateredToday) {
+    if (pumpOpen) {
+      currentMillis = millis();
+      millisDiff = getMillisDiff(pumpStartMillis, currentMillis);
 
-    if (millisDiff >= PUMP_OPEN_SECS * 1000) { //after pump is open for a certain duration
-      pumpOpen = 0; //close pump
-      digitalWrite(pumpPin, LOW); //physically close pump
-      Serial.println("CLOSE PUMP----------------------------------------------------");
-    }
-  } else {
-      if (needsWater()) { //if water conditions are met
-        pumpOpen = 1; //open pump
-        startMillis = millis(); //get start time
-        Serial.println("OPEN PUMP************");
-        digitalWrite(pumpPin, HIGH); //physically open pump
+      if (millisDiff >= PUMP_OPEN_SECS * 1000) { //after pump is open for a certain duration
+        pumpOpen = 0; //close pump
+        isWateredToday = 1; //don't water again today
+        dayCountStartMillis = millis(); //start counting
+        digitalWrite(pumpPin, LOW); //physically close pump
+        Serial.println("CLOSE PUMP----------------------------------------------------");
       }
+    } else {
+        if (needsWater()) { //if water conditions are met
+          pumpOpen = 1; //open pump
+          pumpStartMillis = millis(); //get pump open start time
+          Serial.println("OPEN PUMP************");
+          digitalWrite(pumpPin, HIGH); //physically open pump
+        }
+    }
+  } else { //count for a day passing
+    currentMillis = millis();
+    millisDiff = getMillisDiff(dayCountStartMillis, currentMillis);
+    if (millisDiff >= 1/(24 * 60 * 60 * 1000)) { //one day in milliseconds
+      isWateredToday = 0;
+    }
   }
-
 }
 
 /*
