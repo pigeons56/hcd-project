@@ -3,16 +3,14 @@
 #include <I2C_RTC.h>
 
 //Parameters
-#define WATER_INTERVAL_DAYS 1
+#define WATER_INTERVAL_DAYS 30
 #define MIN_SOIL_MOISTURE 1000
 #define PUMP_OPEN_SECS 30
 #define FLOAT_SENSOR_DELAY_MILLIS 150
-#define START_HR 10
-#define END_HR 18
+#define START_HR 0//10
+#define END_HR 24 //18
 
 //Constants
-const int buttonPin = 13;
-const int plantLightPin = 4;
 const int floatSensorPin = 2;
 const int ledPin = 7;
 const int pumpPin = 9;
@@ -22,19 +20,13 @@ Adafruit_seesaw ss;
 static DS3231 RTC;
 
 //Function Prototypes
-bool togglePlantLight();
 void readFloatSensor();
 bool needsWater();
 void waterPlant();
 unsigned long getMillisDiff(unsigned long start, unsigned long current);
-void controlPlantLight();
 int getHour();
 
 void setup() {
-  //Plant light setup
-  pinMode(plantLightPin, OUTPUT);
-  pinMode(buttonPin, INPUT);
-
   //float sensor & button setup
   pinMode(floatSensorPin, INPUT);
   pinMode(ledPin, OUTPUT);
@@ -56,54 +48,9 @@ void loop() {
   int hour = getHour();
 
   if (hour >= START_HR && hour < END_HR) { //only allow pumping/lights during daylight hours
-    controlPlantLight();
     readFloatSensor();
     waterPlant();
   }
-}
-
-/*
- * Physically turns plant light on/off according to toggle
- * or defined hour interval. Toggle control overrides scheduled
- * turning on/off according to hour interval.
-*/
-void controlPlantLight() {
-  bool toggleOff = togglePlantLight();
-  
-  if (toggleOff) {
-    //Serial.println("OFF");
-    digitalWrite(plantLightPin, LOW);
-  } else if (!toggleOff) {
-    //Serial.println("ON");
-    digitalWrite(plantLightPin, HIGH); //HIGH is light on
-  }
-}
-
-/*
- * Toggle plant light on and off according to button press.
-*/
-bool togglePlantLight() {
-  static bool prevState = HIGH;
-  static bool toggleOff = 0;
-  static unsigned long startMillis = 0;
-  static unsigned long currentMillis = 0;
-  static unsigned long millisDiff = 0;
-  bool buttonState = digitalRead(buttonPin);
-
-  currentMillis = millis();
-  millisDiff = getMillisDiff(startMillis, currentMillis);
-  //Serial.println(buttonState);
-
-  if (prevState == HIGH && buttonState == LOW //pressed
-      && millisDiff >= FLOAT_SENSOR_DELAY_MILLIS ) { //delay has passed
-    Serial.println("PRESSED");
-    startMillis = millis();
-    toggleOff = !toggleOff;  
-  } 
-
-  prevState = buttonState;
-
-  return toggleOff;
 }
 
 /*
@@ -184,7 +131,7 @@ bool needsWater() {
   } else {
     currentMillis = millis();
     millisDiff = getMillisDiff(startMillis, currentMillis);
-    if (millisDiff >= WATER_INTERVAL_DAYS * 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
+    if (millisDiff >= WATER_INTERVAL_DAYS) { //* 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
       isCounting = 0; //reset count
       //Serial.println("TIME MET");
       retVal = 1; 
