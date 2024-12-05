@@ -3,12 +3,13 @@
 #include <I2C_RTC.h>
 
 //Parameters
-#define WATER_INTERVAL_DAYS 4
-#define MIN_SOIL_MOISTURE 400
-#define PUMP_OPEN_SECS 150
+#define WATER_INTERVAL_MILLIS 4 * 24 * 60 * 60 * 1000 //days converted to millis
+#define PUMP_OPEN_MILLIS 150 * 1000 //seconds converted to millis
 #define FLOAT_SENSOR_DELAY_MILLIS 150
-#define START_HR 10
+#define START_HR 9
 #define END_HR 18
+#define WATER_LIMIT_MILLIS 1 * 24 * 60 * 60 * 1000 //days converted to millis
+#define MIN_SOIL_MOISTURE_WAIT_MILLIS 4 * 24 * 60 * 60 * 1000 //days converted to millis
 
 //Constants
 const int floatSensorPin = 2;
@@ -26,6 +27,10 @@ void waterPlant();
 unsigned long getMillisDiff(unsigned long start, unsigned long current);
 void printTime();
 void printStatusMsg(String msg);
+void getMinSoilMoisture();
+
+//Global variables
+int minSoilMoisture = NULL;
 
 void setup() {
   //float sensor & button setup
@@ -46,11 +51,36 @@ void setup() {
 }
 
 void loop() {
+  //First figure out min soil moisture
+  while (minSoilMoisture == NULL) {
+    getMinSoilMoisture();
+  }
+  
+  //After that, start normal operations:
   int hour = RTC.getHours();
 
   if (hour >= START_HR && hour < END_HR) { //only allow pumping/lights during daylight hours
     readFloatSensor();
     waterPlant();
+  }
+}
+
+/* 
+ * Occurs first when Arduino is powered. Waits a certain number of days (MIN_SOIL_MOISTURE_WAIT_MILLIS), 
+ *then reads soil moisture (this is 'dry' soil and is the minimum soil moisture).
+*/
+void getMinSoilMoisture() {
+  static unsigned long startMillis = millis();
+  static unsigned long currentMillis = 0;
+  static unsigned long millisDiff = 0;
+
+  currentMillis = millis();
+  millisDiff = getMillisDiff(startMillis, currentMillis);
+
+  if (millisDiff >= MIN_SOIL_MOISTURE_WAIT_MILLIS) { //wait a number of days
+    minSoilMoisture = ss.touchRead(0);
+    Serial.print(minSoilMoisture);
+    printStatusMsg(" Min soil moisture recorded");
   }
 }
 
@@ -84,7 +114,7 @@ void waterPlant() {
       currentMillis = millis();
       millisDiff = getMillisDiff(pumpStartMillis, currentMillis);
 
-      if (millisDiff >= PUMP_OPEN_SECS * 1000) { //after pump is open for a certain duration
+      if (millisDiff >= PUMP_OPEN_MILLIS) { //after pump is open for a certain duration
         pumpOpen = 0; //close pump
         isWateredToday = 1; //don't water again today
         dayCountStartMillis = millis(); //start counting
@@ -104,7 +134,7 @@ void waterPlant() {
   } else { //count for a day passing
     currentMillis = millis();
     millisDiff = getMillisDiff(dayCountStartMillis, currentMillis);
-    if (millisDiff >= 24 * 60 * 60 * 1000) { //one day in milliseconds
+    if (millisDiff >= WATER_LIMIT_MILLIS) {
       isWateredToday = 0;
       printStatusMsg("Water limit reset");
     }
@@ -115,7 +145,7 @@ void waterPlant() {
  * Returns 0 if plant doesn't need water, 1 if plant needs water.
  * Needs water is determined by:
  *  1. Soil moisture goes below minimum soil moisture (MIN_SOIL_MOISTURE)
- *  2. Days without being watered passes set interval (WATER_INTERVAL_DAYS)
+ *  2. Days without being watered passes set interval (WATER_INTERVAL_MILLIS)
 */
 bool needsWater() {
   static bool isWatered = 0;
@@ -127,7 +157,7 @@ bool needsWater() {
 
   //water based on soil moisture
   uint16_t capread = ss.touchRead(0);
-  if(capread < MIN_SOIL_MOISTURE) {
+  if(capread < minSoilMoisture) {
     isCounting = 0; //reset count
     retVal = 1;
 
@@ -144,7 +174,7 @@ bool needsWater() {
   } else {
     currentMillis = millis();
     millisDiff = getMillisDiff(startMillis, currentMillis);
-    if (millisDiff >= WATER_INTERVAL_DAYS * 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
+    if (millisDiff >= WATER_INTERVAL_MILLIS) { //if days equal to our watering interval passed
       isCounting = 0; //reset count
       retVal = 1; 
 
