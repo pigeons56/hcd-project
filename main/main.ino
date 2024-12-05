@@ -1,43 +1,36 @@
 //Libraries
-#include <RTClib.h>
 #include "Adafruit_seesaw.h"
+#include <I2C_RTC.h>
+
+//Parameters
+#define WATER_INTERVAL_DAYS 4
+#define MIN_SOIL_MOISTURE 400
+#define PUMP_OPEN_SECS 150
+#define FLOAT_SENSOR_DELAY_MILLIS 150
+#define START_HR 10
+#define END_HR 18
 
 //Constants
-#define WATER_INTERVAL_DAYS 7
-#define MIN_SOIL_MOISTURE 300
-#define PUMP_OPEN_SECS 3
-#define PLANT_LIGHT_ON_TIME 10
-#define PLANT_LIGHT_OFF_TIME 16
+const int floatSensorPin = 2;
+const int ledPin = 7;
+const int pumpPin = 9;
 
-RTC_DS3231 rtc; //Depends on what RTC we have
+//Objects
 Adafruit_seesaw ss;
-const int pumpPin = 1;
-const int floatSwitchPin = 2;
-const int ledPin = 3;
-const int plantLightPin = 4;
-const int plantLightButtonPin = 6;
-
-//Global vars
-bool plantLightToggleOff = 0;
-bool plantLightOn = 0;
+static DS3231 RTC;
 
 //Function Prototypes
-int getSec();
-int getHour();
-int getDay();
-void setTime();
+void readFloatSensor();
 bool needsWater();
 void waterPlant();
-void readFloatSwitch();
-void timePlantLight();
-void turnPlantLightOn();
-void turnPlantLightOff();
-void plantLightToggle();
+unsigned long getMillisDiff(unsigned long start, unsigned long current);
+void printTime();
+void printStatusMsg(String msg);
 
 void setup() {
-  // RTC Setup
-  rtc.begin();
-  setTime(); //Comment out after done ONCE
+  //float sensor & button setup
+  pinMode(floatSensorPin, INPUT);
+  pinMode(ledPin, OUTPUT);
 
   //Soil sensor setup
   ss.begin(0x36);
@@ -45,195 +38,150 @@ void setup() {
   //Water pump setup
   pinMode(pumpPin, OUTPUT);
 
-  //Float switch setup
-  pinMode(floatSwitchPin, INPUT_PULLUP);
-  pinMode(ledPin, OUTPUT);
+  // RTC Setup
+  RTC.begin();
 
-  //Plant light setup
-  pinMode(plantLightPin, OUTPUT);
-  pinMode(plantLightButtonPin, INPUT);
+  //Serial monitor setup
+  Serial.begin(115200);
 }
 
 void loop() {
-  //Plant light control
-  plantLightToggle();
-  if (plantLightToggleOff) {
-    turnPlantLightOff(); //Plant light always off if toggled off
-  } else {
-    timePlantLight(); //Control plant light based on hour if not toggled off
-  }
+  int hour = RTC.getHours();
 
-  //Water the plant according to time or soil moisture
-  waterPlant();
-
-  //Check water level
-  readFloatSwitch();
-
-}
-
-/*
- * Turns plant light on/off according to current hour.
-*/
-void timePlantLight() {
-  int hour = getHour;
-
-  if (hour < PLANT_LIGHT_OFF_TIME && hour >= PLANT_LIGHT_ON_TIME) {
-    turnPlantLightOn();
-  } else {
-    turnPlantLightOff();
+  if (hour >= START_HR && hour < END_HR) { //only allow pumping/lights during daylight hours
+    readFloatSensor();
+    waterPlant();
   }
 }
 
 /*
- * Turns plant light on.
+ * Reads state of float sensor. LOW is when water level is lower than sensor.
 */
-void turnPlantLightOn() {
-  if (!plantLightOn) {
-      plantLightOn = 1;
-      digitalWrite(plantLightPin, HIGH);
-  }
-}
+void readFloatSensor() {
+  bool floatSensorState = digitalRead(floatSensorPin);
 
-/*
- * Turns plant light off.
-*/
-void turnPlantLightOff() {
-  if (plantLightOn) {
-    plantLightOn = 0;
-    digitalWrite(plantLightPin, LOW);
-  }
-}
-
-/*
- * Toggles plant light on/off according to button press.
-*/
-void plantLightToggle() {
-  int plantLightButtonState = digitalRead(plantLightButtonPin);
-
-  if (plantLightButtonState == LOW) { //on press
-    if (plantLightToggleOff) {
-      plantLightToggleOff = 0;
-    } else {
-      plantLightToggleOff = 1;
-    }
-  }
-
-}
-
-/*
- * Reads the state of the float switch. If the float switch is
- * LOW (water level is high), turn off LED. If the float switch
- * is HIGH (water level is low), turn on LED.
-*/
-void readFloatSwitch() {
-  bool floatSwitchState = digitalRead(floatSwitchPin);
-
-  if (floatSwitchState == LOW) {
-    digitalWrite(ledPin, LOW);
-  } else {
+  if (floatSensorState == LOW) {
     digitalWrite(ledPin, HIGH);
+  } else {
+    digitalWrite(ledPin, LOW);
   }
 }
 
 /*
- * Open pump depending on needsWater() value. Pump stays open for PUMP_OPEN_SECS.
+ * If plant needs watering (determined by needsWater()), open 
+ * pump for a certain amount of seconds (PUMP_OPEN_SECS)
 */
 void waterPlant() {
   static bool pumpOpen = 0;
-  static int startSec = 0;
-  static int currentSec = 0;
-  static int secDiff = 0;
+  static unsigned long pumpStartMillis = 0;
+  static unsigned long dayCountStartMillis = 0;
+  static unsigned long currentMillis = 0;
+  static unsigned long millisDiff = 0;
+  static bool isWateredToday = 0;
 
-  if (pumpOpen) {
-    currentSec = getSec();
+  if (!isWateredToday) {
+    if (pumpOpen) {
+      currentMillis = millis();
+      millisDiff = getMillisDiff(pumpStartMillis, currentMillis);
 
-    //Calculate how many mins have passed
-    if (currentSec >= startSec) { //did not pass the hour
-      secDiff = currentSec - startSec;
-    } else { //did pass the hour
-      secDiff = 60 - startSec + currentSec;
-    }
+      if (millisDiff >= PUMP_OPEN_SECS * 1000) { //after pump is open for a certain duration
+        pumpOpen = 0; //close pump
+        isWateredToday = 1; //don't water again today
+        dayCountStartMillis = millis(); //start counting
+        digitalWrite(pumpPin, LOW); //physically close pump
 
-    if (secDiff >= PUMP_OPEN_SECS) { //after pump is open for a certain duration
-      pumpOpen = 0; //close pump
-      digitalWrite(pumpPin, LOW); //physically close pump
-    }
-  } else {
+        printStatusMsg("Pump CLOSED");
+      }
+    } else {
       if (needsWater()) { //if water conditions are met
         pumpOpen = 1; //open pump
-        startSec = getSec(); //get start time
+        pumpStartMillis = millis(); //get pump open start time
         digitalWrite(pumpPin, HIGH); //physically open pump
-      }
-  }
 
+        printStatusMsg("Pump OPENED");
+      }
+    }
+  } else { //count for a day passing
+    currentMillis = millis();
+    millisDiff = getMillisDiff(dayCountStartMillis, currentMillis);
+    if (millisDiff >= 24 * 60 * 60 * 1000) { //one day in milliseconds
+      isWateredToday = 0;
+      printStatusMsg("Water limit reset");
+    }
+  }
 }
 
 /*
- * Returns 1 if either soil moisture is below a minimum OR a certain
- * number of days have passed since watering. Otherwise return 0.
+ * Returns 0 if plant doesn't need water, 1 if plant needs water.
+ * Needs water is determined by:
+ *  1. Soil moisture goes below minimum soil moisture (MIN_SOIL_MOISTURE)
+ *  2. Days without being watered passes set interval (WATER_INTERVAL_DAYS)
 */
 bool needsWater() {
   static bool isWatered = 0;
-  static bool isCountingDays = 0;
-  static int hourNow = 0;
-  static int dayNow = 0;
-  static int daysPassed = 0;
-  
+  static bool isCounting = 0;
+  static unsigned long startMillis = 0;
+  static unsigned long currentMillis = 0;
+  static unsigned long millisDiff = 0;
+  bool retVal = 0;
+
   //water based on soil moisture
   uint16_t capread = ss.touchRead(0);
   if(capread < MIN_SOIL_MOISTURE) {
-    isCountingDays = 0; //reset count
-    return 1;
+    isCounting = 0; //reset count
+    retVal = 1;
+
+    Serial.print(capread);
+    printStatusMsg(" Needs water (SOIL condition)");
   } else {
-    return 0;
+    retVal = 0;
   }
 
   //water based on time (if not watered already)
-  if (!isCountingDays) {
-    daysPassed = 0; //reset daysPassed
-    hourNow = getHour(); //get hour right now when program was started/plant was watered
-    dayNow = getDay(); //get day right now when program was started/plant was watered
-    isCountingDays = 1; //start counting
+  if (!isCounting) {
+    startMillis = millis();
+    isCounting = 1; //start counting
   } else {
-    if (getHour() == hourNow && getDay() != dayNow) { //if a day has passed
-      daysPassed++;
-    }
+    currentMillis = millis();
+    millisDiff = getMillisDiff(startMillis, currentMillis);
+    if (millisDiff >= WATER_INTERVAL_DAYS * 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
+      isCounting = 0; //reset count
+      retVal = 1; 
 
-    if (daysPassed == WATER_INTERVAL_DAYS) { //if days equal to our watering interval passed
-      isCountingDays = 0; //reset count
-      return 1; 
+      printStatusMsg("Needs water (TIME condition)");
     }
+  }
+
+  return retVal;
+}
+
+/*
+ * Calculates the difference between start and current milliseconds.
+*/
+unsigned long getMillisDiff(unsigned long start, unsigned long current) {
+  if (current >= start) {
+    return current - start;
+  } else { //overflow occurred, millis() reset
+    return 4294967295 - start + current;
   }
 }
 
 /*
- * Returns the current second.
- */
-int getSec() {
-  DateTime now = rtc.now();
-  return now.second();
-}
-  
-/*
- * Returns the current hour.
- */
-int getHour() {
-  DateTime now = rtc.now();
-  return now.hour();
+ * Print current real time to Serial Monitor. Used for status/error messages.
+*/
+void printTime() {
+  Serial.print(RTC.getHours());
+  Serial.print(":");
+  Serial.print(RTC.getMinutes());
+  Serial.print(":");
+  Serial.println(RTC.getSeconds());
 }
 
 /*
- * Returns the current day.
- */
-int getDay() {
-  DateTime now = rtc.now();
-  return now.day();
-}
-
-/* 
- * One-time setup for the RTC. Time should save even when Arduino is not running.
- * Run ONCE.
- */
-void setTime() {
-  rtc.adjust(DateTime(2024, 11, 18, 4, 28, 0)); //yr, mon, day, hr, min, sec
+ * Print status message
+*/
+void printStatusMsg(String msg) {
+  Serial.print(msg);
+  Serial.print(": ");
+  printTime();
 }
