@@ -3,13 +3,13 @@
 #include <I2C_RTC.h>
 
 //Parameters
-#define WATER_INTERVAL_MILLIS 4 * 24 * 60 * 60 * 1000 //days converted to millis
-#define PUMP_OPEN_MILLIS 150 * 1000 //seconds converted to millis
-#define FLOAT_SENSOR_DELAY_MILLIS 150
-#define START_HR 10
-#define END_HR 18
-#define WATER_LIMIT_MILLIS 1 * 24 * 60 * 60 * 1000 //days converted to millis
-#define MIN_SOIL_MOISTURE_WAIT_MILLIS 4 * 24 * 60 * 60 * 1000 //days converted to millis
+const unsigned long WATER_INTERVAL_MILLIS = 4 * 24 * 60 * 60 * 1000; //days converted to millis
+const unsigned long PUMP_OPEN_MILLIS = 150 * 1000; //seconds converted to millis
+const unsigned long FLOAT_SENSOR_DELAY_MILLIS = 150;
+const int START_HR = 10;
+const int END_HR = 18;
+const unsigned long WATER_LIMIT_MILLIS = 1 * 24 * 60 * 60 * 1000; //days converted to millis
+const unsigned long MIN_SOIL_MOISTURE_WAIT_MILLIS = 4 * 24 * 60 * 60 * 1000; //days converted to millis
 
 //Constants
 const int floatSensorPin = 2;
@@ -54,17 +54,29 @@ void setup() {
 }
 
 void loop() {
+  int hour;
+
   //First figure out min soil moisture
   while (!minSoilMoistureSet) {
+    hour = RTC.getHours();
     getMinSoilMoisture();
+
+    if (hour >= START_HR && hour < END_HR) { //allow float sensor to work while waiting for min soil read
+      readFloatSensor();
+    } else {
+      digitalWrite(ledPin, LOW); //make sure LED is off
+    }
   }
   
   //After that, start normal operations:
-  int hour = RTC.getHours();
+  hour = RTC.getHours();
 
   if (hour >= START_HR && hour < END_HR) { //only allow pumping/lights during daylight hours
     readFloatSensor();
     waterPlant();
+  } else {
+    digitalWrite(ledPin, LOW); //make sure LED is off
+    digitalWrite(pumpPin, LOW); //make sure pump is closed
   }
 }
 
@@ -79,7 +91,6 @@ void getMinSoilMoisture() {
 
   currentMillis = millis();
   millisDiff = getMillisDiff(startMillis, currentMillis);
-
   if (millisDiff >= MIN_SOIL_MOISTURE_WAIT_MILLIS) { //wait a number of days
     minSoilMoisture = ss.touchRead(0);
     minSoilMoistureSet = 1;
