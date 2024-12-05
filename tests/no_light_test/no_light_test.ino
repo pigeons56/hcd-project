@@ -3,12 +3,12 @@
 #include <I2C_RTC.h>
 
 //Parameters
-#define WATER_INTERVAL_DAYS 30
-#define MIN_SOIL_MOISTURE 800
-#define PUMP_OPEN_SECS 15
+//#define WATER_INTERVAL_DAYS 4
+#define MIN_SOIL_MOISTURE 400
+#define PUMP_OPEN_SECS 10
 #define FLOAT_SENSOR_DELAY_MILLIS 150
-#define START_HR 0//10
-#define END_HR 24 //18
+#define START_HR 0
+#define END_HR 23
 
 //Constants
 const int floatSensorPin = 2;
@@ -42,7 +42,7 @@ void setup() {
   RTC.begin();
 
   //Serial monitor setup
-  Serial.begin(9600);
+  Serial.begin(115200);
 }
 
 void loop() {
@@ -104,8 +104,9 @@ void waterPlant() {
   } else { //count for a day passing
     currentMillis = millis();
     millisDiff = getMillisDiff(dayCountStartMillis, currentMillis);
-    if (millisDiff >= 1/(24 * 60 * 60 * 1000)) { //one day in milliseconds
+    if (millisDiff >= 30000) {//24 * 60 * 60 * 1000) { //one day in milliseconds
       isWateredToday = 0;
+      printStatusMsg("Water limit reset");
     }
   }
 }
@@ -131,7 +132,7 @@ bool needsWater() {
     retVal = 1;
 
     Serial.print(capread);
-    printStatusMsg("Needs water (SOIL condition)");
+    printStatusMsg(" Needs water (SOIL condition)");
   } else {
     retVal = 0;
   }
@@ -143,7 +144,7 @@ bool needsWater() {
   } else {
     currentMillis = millis();
     millisDiff = getMillisDiff(startMillis, currentMillis);
-    if (millisDiff >= WATER_INTERVAL_DAYS) { //* 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
+    if (millisDiff >= 50000) {//WATER_INTERVAL_DAYS * 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
       isCounting = 0; //reset count
       retVal = 1; 
 
