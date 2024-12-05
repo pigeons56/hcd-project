@@ -1,33 +1,37 @@
 //Libraries
 #include "Adafruit_seesaw.h"
-#include <I2C_RTC.h>
 
 //Parameters
-#define WATER_INTERVAL_DAYS 4
-#define MIN_SOIL_MOISTURE 400
-#define PUMP_OPEN_SECS 150
-#define FLOAT_SENSOR_DELAY_MILLIS 150
-#define START_HR 10
-#define END_HR 18
+#define WATER_INTERVAL_DAYS 30
+#define MIN_SOIL_MOISTURE 1000
+#define PUMP_OPEN_SECS 20
+#define FLOAT_SENSOR_DELAY_MILLIS 250
 
 //Constants
+const int buttonPin = 13;
+const int plantLightPin = 4;
 const int floatSensorPin = 2;
 const int ledPin = 7;
 const int pumpPin = 9;
 
 //Objects
 Adafruit_seesaw ss;
-static DS3231 RTC;
 
 //Function Prototypes
+void toggleLight();
 void readFloatSensor();
 bool needsWater();
 void waterPlant();
 unsigned long getMillisDiff(unsigned long start, unsigned long current);
-void printTime();
-void printStatusMsg(String msg);
+
+//counter
+int secondsPassed = 0;
 
 void setup() {
+  //Plant light setup
+  pinMode(plantLightPin, OUTPUT);
+  pinMode(buttonPin, INPUT);
+
   //float sensor & button setup
   pinMode(floatSensorPin, INPUT);
   pinMode(ledPin, OUTPUT);
@@ -38,31 +42,60 @@ void setup() {
   //Water pump setup
   pinMode(pumpPin, OUTPUT);
 
-  // RTC Setup
-  RTC.begin();
-
   //Serial monitor setup
-  Serial.begin(115200);
+  Serial.begin(9600);
 }
-
 void loop() {
-  int hour = RTC.getHours();
-
-  if (hour >= START_HR && hour < END_HR) { //only allow pumping/lights during daylight hours
-    readFloatSensor();
-    waterPlant();
-  }
+  //toggleLight();
+  readFloatSensor();
+  waterPlant();
+  
 }
 
 /*
- * Reads state of float sensor. LOW is when water level is lower than sensor.
+ * Toggle plant light on and off according to button press.
+*/
+void toggleLight() {
+  static bool prevState = HIGH;
+  static bool toggleOff = 0;
+  static unsigned long startMillis = 0;
+  static unsigned long currentMillis = 0;
+  static unsigned long millisDiff = 0;
+  bool buttonState = digitalRead(buttonPin);
+
+  currentMillis = millis();
+  millisDiff = getMillisDiff(startMillis, currentMillis);
+  //Serial.println(buttonState);
+
+  if (prevState == HIGH && buttonState == LOW //pressed
+      && millisDiff >= FLOAT_SENSOR_DELAY_MILLIS ) { //delay has passed
+    Serial.println("PRESSED");
+    startMillis = millis();
+    toggleOff = !toggleOff;  
+  } 
+ 
+  if (toggleOff) {
+    //Serial.println("OFF");
+    digitalWrite(plantLightPin, LOW);
+  } else {
+    //Serial.println("ON");
+    digitalWrite(plantLightPin, HIGH); //HIGH is light on
+  }
+
+  prevState = buttonState;
+}
+
+/*
+ * Reads state of float sensor. LOW is when 
 */
 void readFloatSensor() {
   bool floatSensorState = digitalRead(floatSensorPin);
 
   if (floatSensorState == LOW) {
+    //Serial.println("Sensor is LOW");
     digitalWrite(ledPin, HIGH);
   } else {
+    //Serial.println("Sensor is HIGH");
     digitalWrite(ledPin, LOW);
   }
 }
@@ -73,42 +106,29 @@ void readFloatSensor() {
 */
 void waterPlant() {
   static bool pumpOpen = 0;
-  static unsigned long pumpStartMillis = 0;
-  static unsigned long dayCountStartMillis = 0;
+  static unsigned long startMillis = 0;
   static unsigned long currentMillis = 0;
   static unsigned long millisDiff = 0;
-  static bool isWateredToday = 0;
 
-  if (!isWateredToday) {
-    if (pumpOpen) {
-      currentMillis = millis();
-      millisDiff = getMillisDiff(pumpStartMillis, currentMillis);
+  if (pumpOpen) {
+    currentMillis = millis();
+    millisDiff = getMillisDiff(startMillis, currentMillis);
+    
 
-      if (millisDiff >= PUMP_OPEN_SECS * 1000) { //after pump is open for a certain duration
-        pumpOpen = 0; //close pump
-        isWateredToday = 1; //don't water again today
-        dayCountStartMillis = millis(); //start counting
-        digitalWrite(pumpPin, LOW); //physically close pump
-
-        printStatusMsg("Pump CLOSED");
-      }
-    } else {
+    if (millisDiff >= PUMP_OPEN_SECS * 1000) { //after pump is open for a certain duration
+      pumpOpen = 0; //close pump
+      digitalWrite(pumpPin, LOW); //physically close pump
+      Serial.println("CLOSE PUMP----------------------------------------------------");
+    }
+  } else {
       if (needsWater()) { //if water conditions are met
         pumpOpen = 1; //open pump
-        pumpStartMillis = millis(); //get pump open start time
+        startMillis = millis(); //get start time
+        Serial.println("OPEN PUMP************");
         digitalWrite(pumpPin, HIGH); //physically open pump
-
-        printStatusMsg("Pump OPENED");
       }
-    }
-  } else { //count for a day passing
-    currentMillis = millis();
-    millisDiff = getMillisDiff(dayCountStartMillis, currentMillis);
-    if (millisDiff >= 24 * 60 * 60 * 1000) { //one day in milliseconds
-      isWateredToday = 0;
-      printStatusMsg("Water limit reset");
-    }
   }
+
 }
 
 /*
@@ -127,18 +147,17 @@ bool needsWater() {
 
   //water based on soil moisture
   uint16_t capread = ss.touchRead(0);
+  Serial.println(capread);
   if(capread < MIN_SOIL_MOISTURE) {
     isCounting = 0; //reset count
     retVal = 1;
-
-    Serial.print(capread);
-    printStatusMsg(" Needs water (SOIL condition)");
   } else {
     retVal = 0;
   }
 
   //water based on time (if not watered already)
   if (!isCounting) {
+    Serial.println("START COUNTING");
     startMillis = millis();
     isCounting = 1; //start counting
   } else {
@@ -146,9 +165,8 @@ bool needsWater() {
     millisDiff = getMillisDiff(startMillis, currentMillis);
     if (millisDiff >= WATER_INTERVAL_DAYS * 24 * 60 * 60 * 1000) { //if days equal to our watering interval passed
       isCounting = 0; //reset count
+      Serial.println("TIME MET");
       retVal = 1; 
-
-      printStatusMsg("Needs water (TIME condition)");
     }
   }
 
@@ -164,24 +182,4 @@ unsigned long getMillisDiff(unsigned long start, unsigned long current) {
   } else { //overflow occurred, millis() reset
     return 4294967295 - start + current;
   }
-}
-
-/*
- * Print current real time to Serial Monitor. Used for status/error messages.
-*/
-void printTime() {
-  Serial.print(RTC.getHours());
-  Serial.print(":");
-  Serial.print(RTC.getMinutes());
-  Serial.print(":");
-  Serial.println(RTC.getSeconds());
-}
-
-/*
- * Print status message
-*/
-void printStatusMsg(String msg) {
-  Serial.print(msg);
-  Serial.print(": ");
-  printTime();
 }
