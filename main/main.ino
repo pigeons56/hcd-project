@@ -6,7 +6,7 @@
 #define WATER_INTERVAL_MILLIS 4 * 24 * 60 * 60 * 1000 //days converted to millis
 #define PUMP_OPEN_MILLIS 150 * 1000 //seconds converted to millis
 #define FLOAT_SENSOR_DELAY_MILLIS 150
-#define START_HR 9
+#define START_HR 10
 #define END_HR 18
 #define WATER_LIMIT_MILLIS 1 * 24 * 60 * 60 * 1000 //days converted to millis
 #define MIN_SOIL_MOISTURE_WAIT_MILLIS 4 * 24 * 60 * 60 * 1000 //days converted to millis
@@ -30,7 +30,8 @@ void printStatusMsg(String msg);
 void getMinSoilMoisture();
 
 //Global variables
-int minSoilMoisture = NULL;
+uint16_t minSoilMoisture = 400;
+int minSoilMoistureSet = 0;
 
 void setup() {
   //float sensor & button setup
@@ -48,11 +49,13 @@ void setup() {
 
   //Serial monitor setup
   Serial.begin(115200);
+
+  printStatusMsg("DEPLOYED");
 }
 
 void loop() {
   //First figure out min soil moisture
-  while (minSoilMoisture == NULL) {
+  while (!minSoilMoistureSet) {
     getMinSoilMoisture();
   }
   
@@ -79,6 +82,7 @@ void getMinSoilMoisture() {
 
   if (millisDiff >= MIN_SOIL_MOISTURE_WAIT_MILLIS) { //wait a number of days
     minSoilMoisture = ss.touchRead(0);
+    minSoilMoistureSet = 1;
     Serial.print(minSoilMoisture);
     printStatusMsg(" Min soil moisture recorded");
   }
